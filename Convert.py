@@ -1,7 +1,7 @@
 import os
 import sys
 from PIL import Image
-from multiprocessing import Pool, cpu_count, freeze_support
+from multiprocessing import Pool, cpu_count, freeze_support, Value
 
 # 正確取得 exe 所在目錄
 if getattr(sys, 'frozen', False):
@@ -18,18 +18,25 @@ os.makedirs(output_dir, exist_ok=True)
 def convert_file(filename):
     try:
         input_path = os.path.join(input_dir, filename)
-
         with Image.open(input_path) as img:
-            img = img.convert("RGB")  # JPG 不支援透明
-            # 不管原本是 .webp 或 .avif 都轉成 .jpg
+            img = img.convert("RGB")
             output_name = os.path.splitext(filename)[0] + ".jpg"
             output_path = os.path.join(output_dir, output_name)
             img.save(output_path, "JPEG", quality=95)
-
-        return True  # 成功
-
-    except Exception as e:
+        return True
+    except Exception:
         return False
+
+
+def update_progress(result):
+    global progress_count
+    with progress_count.get_lock():  # Value 有 lock，可以多進程安全操作
+        progress_count.value += 1
+        percent = progress_count.value / total * 100
+        bar_length = 30
+        filled_len = int(bar_length * progress_count.value // total)
+        bar = '=' * filled_len + '-' * (bar_length - filled_len)
+        print(f"\r[{bar}] {percent:6.2f}% ({progress_count.value}/{total})", end='')
 
 
 if __name__ == "__main__":
@@ -51,24 +58,34 @@ if __name__ == "__main__":
     total = len(files)
     print(f"開始轉換 {total} 張圖片...\n")
 
-    # 使用單執行緒循環 + 同行進度
+    # 讓使用者選擇 CPU 核心數
+    max_cores = cpu_count()
+    print(f"檢測到 CPU 核心數: {max_cores}")
+    while True:
+        try:
+            cores = int(input(f"請輸入要使用的核心數 (1-{max_cores}): "))
+            if 1 <= cores <= max_cores:
+                break
+            else:
+                print(f"請輸入 1 到 {max_cores} 的數字")
+        except ValueError:
+            print("請輸入有效數字")
+
+    print(f"\n使用 {cores} 核心開始轉換...\n")
+
+    # 使用 multiprocessing.Value 取代 Manager().Value
+    progress_count = Value('i', 0)  # 'i' 表示整數型
+
     results = []
-    for i, file in enumerate(files, 1):
-        success = convert_file(file)
-        results.append(success)
+    with Pool(processes=cores) as pool:
+        for f in files:
+            results.append(pool.apply_async(convert_file, args=(f,), callback=update_progress))
+        pool.close()
+        pool.join()
 
-        # 進度百分比
-        percent = i / total * 100
-        # 進度條長度 30 個 = 符號
-        bar_length = 30
-        filled_len = int(bar_length * i // total)
-        bar = '=' * filled_len + '-' * (bar_length - filled_len)
-
-        # \r 回到行首，end='' 不換行
-        print(f"\r[{bar}] {percent:6.2f}% ({i}/{total})", end='')
+    success_count = sum(r.get() for r in results)
+    fail_count = len(results) - success_count
 
     print("\n\n轉換完成！")
-    success_count = sum(results)
-    fail_count = len(results) - success_count
     print(f"成功: {success_count}, 失敗: {fail_count}")
     input("按 Enter 結束...")
