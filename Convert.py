@@ -1,7 +1,21 @@
 import os
+import subprocess
 import sys
 from PIL import Image
 from multiprocessing import Pool, cpu_count, freeze_support, Value
+
+def install_and_import(package_name, import_name=None):
+    import_name = import_name or package_name
+    try:
+        __import__(import_name)
+    except ImportError:
+        print(f"{package_name} 未安裝，正在安裝...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+        print(f"{package_name} 安裝完成！")
+
+# 自動檢查並安裝
+install_and_import("Pillow")
+install_and_import("pillow-avif-plugin")
 
 # 正確取得 exe 所在目錄
 if getattr(sys, 'frozen', False):
