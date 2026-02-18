@@ -63,7 +63,8 @@ if __name__ == "__main__":
     print(f"檢測到 CPU 核心數: {max_cores}")
     while True:
         try:
-            cores = int(input(f"請輸入要使用的核心數 (1-{max_cores}): "))
+            cores_input = input(f"請輸入要使用的核心數 (1-{max_cores})，留空則使用最大核心數: ")
+            cores = int(max_cores if cores_input == "" else cores_input)
             if 1 <= cores <= max_cores:
                 break
             else:
