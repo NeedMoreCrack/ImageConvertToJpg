@@ -1,22 +1,7 @@
 import os
-import subprocess
 import sys
 from PIL import Image
 from multiprocessing import Pool, cpu_count, freeze_support, Value
-
-def install_requirements():
-    requirements_path = os.path.join(base_dir, "requirements.txt")
-
-    try:
-        from PIL import Image
-        Image.registered_extensions()
-    except Exception:
-        print("偵測到套件未安裝，正在安裝 requirements.txt...")
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "-r", requirements_path]
-        )
-        print("套件安裝完成！\n")
-
 
 # 正確取得 exe 所在目錄
 if getattr(sys, 'frozen', False):
@@ -56,7 +41,6 @@ def update_progress(_):
 
 if __name__ == "__main__":
     freeze_support()
-    install_requirements()
 
     if not os.path.exists(input_dir):
         print("找不到 input 資料夾，請建立 input 並放入 webp / avif 圖片")
