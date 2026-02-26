@@ -4,18 +4,24 @@ import sys
 from PIL import Image
 from multiprocessing import Pool, cpu_count, freeze_support, Value
 
-def install_and_import(package_name, import_name=None):
-    import_name = import_name or package_name
-    try:
-        __import__(import_name)
-    except ImportError:
-        print(f"{package_name} 未安裝，正在安裝...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
-        print(f"{package_name} 安裝完成！")
+def install_requirements():
+    requirements_path = os.path.join(base_dir, "requirements.txt")
 
-# 自動檢查並安裝
-install_and_import("Pillow")
-install_and_import("pillow-avif-plugin")
+    if not os.path.exists(requirements_path):
+        print("找不到 requirements.txt")
+        return
+
+    try:
+        # 嘗試匯入必要模組測試是否已安裝
+        import PIL
+        import pillow_avif_plugin
+    except ImportError:
+        print("偵測到套件未安裝，正在安裝 requirements.txt...")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-r", requirements_path]
+        )
+        print("套件安裝完成！\n")
+
 
 # 正確取得 exe 所在目錄
 if getattr(sys, 'frozen', False):
@@ -42,7 +48,7 @@ def convert_file(filename):
         return False
 
 
-def update_progress(result):
+def update_progress():
     global progress_count
     with progress_count.get_lock():  # Value 有 lock，可以多進程安全操作
         progress_count.value += 1
@@ -55,6 +61,7 @@ def update_progress(result):
 
 if __name__ == "__main__":
     freeze_support()
+    install_requirements()
 
     if not os.path.exists(input_dir):
         print("找不到 input 資料夾，請建立 input 並放入 webp / avif 圖片")
