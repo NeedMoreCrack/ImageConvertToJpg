@@ -7,15 +7,10 @@ from multiprocessing import Pool, cpu_count, freeze_support, Value
 def install_requirements():
     requirements_path = os.path.join(base_dir, "requirements.txt")
 
-    if not os.path.exists(requirements_path):
-        print("找不到 requirements.txt")
-        return
-
     try:
-        # 嘗試匯入必要模組測試是否已安裝
-        import PIL
-        import pillow_avif_plugin
-    except ImportError:
+        from PIL import Image
+        Image.registered_extensions()
+    except Exception:
         print("偵測到套件未安裝，正在安裝 requirements.txt...")
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "-r", requirements_path]
@@ -48,9 +43,9 @@ def convert_file(filename):
         return False
 
 
-def update_progress():
+def update_progress(_):
     global progress_count
-    with progress_count.get_lock():  # Value 有 lock，可以多進程安全操作
+    with progress_count.get_lock():
         progress_count.value += 1
         percent = progress_count.value / total * 100
         bar_length = 30
